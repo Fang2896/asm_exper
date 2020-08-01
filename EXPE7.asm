@@ -42,13 +42,13 @@ S:  MOV AX, [DI]
 
     MOV AX, [BX+168]
     MOV ES:[SI+10], AX
-    MOVE BYTE PTR ES:[SI+12], 20H
+    MOV BYTE PTR ES:[SI+12], 20H
 
     MOV AX, ES:[SI+5]
     MOV DX, ES:[SI+7]
     DIV WORD PTR ES:[SI+10]
     MOV ES:[SI+13], AX
-    MOVE BYTE PTR ES:[SI+12], 20H
+    MOV BYTE PTR ES:[SI+15], 20H
 
     ADD SI, 10H
     ADD DI, 4
