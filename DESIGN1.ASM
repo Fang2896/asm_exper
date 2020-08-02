@@ -12,23 +12,74 @@ DATA SEGMENT
     dd 21 DUP (0)
 DATA ENDS
 
+STRING SEGMENT
+    db 21 DUP '          '  ; 10 blank
+    db 21 DUP '     '       ; 5 blank
+    db 21 DUP '          '  ; 10 blank
+STRING ENDS
+
+CACHE SEGMENT
+    dw 8 DUP 0
+CACHE ENDS
 
 
 ; ===============================================================;
 ; Function: print the data above on the screen
 ; 1. call the subprogram(DIVDW) to process the data, compute the meam salaries and save them
-; 2. call the subprogram(DTOC) to modify the dword number data to the string
-; 3. call the subprogram(SHOW_STR) to print these data to the screen.
+; 2. call the subprogram(DTOC) to modify the dword number data to the string and show in screen
 ; ===============================================================;
 CODES SEGMENT
     ASSUME CS:CODES, DS:DATA
 START:
     MOV AX, DATA
     MOV DS, AX
-    MOV AX, TABLE
+    MOV AX, 0B800H
     MOV ES, AX
 
+    MOV SI, 0
+    MOV BX, 168
+    MOV CX, 21
 
+PROCESS:
+    PUSH CX
+
+COMPUTE:    ; 1. compute the meam salaries
+    MOV CX, [BX]
+    MOV DX, [SI + 86]
+    MOV AX, [SI + 84]
+    CALL DIVDW
+    MOV [SI + 210], AX
+    MOV [SI + 212], DX
+
+NUM2STR:    ; 2. modify the dword number data to the string  and show in screen
+    PUSH SI
+
+    ; Double word
+    ADD SI, 84
+    MOV AX, [SI]
+    MOV DX, [SI + 2]
+    CALL DTOC
+    MOV [SI], AX
+    MOV [SI + 2], DX
+
+    ; word
+    MOV DX, 0
+    MOV AX, [BX]
+    CALL DTOC
+    MOV [BX], AX
+    ; Double word
+    ADD SI, 126
+    MOV AX, [SI]
+    MOV DX, [SI + 2]
+    CALL DTOC
+    MOV [SI], AX
+    MOV [SI + 2], DX
+
+
+    POP SI
+    ADD SI, 4
+    ADD BX, 2
+    LOOP PROCESS
     
     MOV AH, 4CH
     INT 21H
@@ -39,7 +90,7 @@ START:
 ; Divide sub program
 ; Parameter: dividend:  DX: high 16bit digit, AX: low 16bit digit.
 ;            divisor:   CX
-; Result:    quotient:  DX: high 16bit digit, AX: low 16bit digit.
+; Return:    quotient:  DX: high 16bit digit, AX: low 16bit digit.
 ;            remainder: CX
 ; ===============================================================;
 DIVDW:  
@@ -101,18 +152,66 @@ RET
 
 ; ===============================================================;
 ; Double word data-string change sub program
-; 
-; 
+; parameter:    DX-> high 16bit, AX-> low 16bit, DS:[SI]-> location of the data
+; return:       change the number to the string
 ; ===============================================================;
 DTOC:
+    PUSH DS
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+    PUSH DI
+    PUSH SI   
+    
+    MOV DI, 0   ; As a counter
+    MOV SI, DX  ; temporally save the DX(high 16bit number data)
+    MOV DX, 0
+    MOV BX, 10
 
-DEVIDE:
+LOWDIV:
+    MOV CX, AX
+    JCXZ MID
+
+    ; 32bit / 16bit 
+    MOV DX, 0
+    DIV BX
+    INC DI
+    PUSH DX
+    JMP LOWDIV
+
+MID:
+    MOV AX, SI
+HIGHDIV:
+    MOV CX, AX
+    JCXZ STOP
+
+    MOV DX, 0
+    DIV BX
+    INC DI
+    PUSH DX
+    JMP HIGHDIV
 
 STOP:
+    MOV CX, DI  ; DI is the length of the str-number
+    MOV AX, STRING
+    MOV DS, AX
+STRSHOW:
+    
+    POP BX
+    ADD BX, 30H
+    MOV ES:[SI], BL
+    INC SI
+    LOOP STRSHOW
 
-STRING:
 
-
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    POP DI
+    POP SI
+    POP DS
 
 RET
 
@@ -120,62 +219,55 @@ RET
 
 ; ===============================================================;
 ; Show the data on the screen sub program
-; DH-index, DL-row, CL-color; 
-; DS-DataSegment, SI-data location, 
+; DH-index, DL-row, CL-color
+; DS-DataSegment, SI-data location,
+; BX-length of the str 
 ; ES-screen segment adress, DI-screen location
 ; ===============================================================;
-SHOW_STR:
-    ; push all used-parameter to the stack
-    PUSH SI
-    PUSH DI
-    PUSH DS
-    PUSH ES
-    PUSH BX
+; SHOW_STR:
+;     ; push all used-parameter to the stack
+;     PUSH SI
+;     PUSH DI
+;     PUSH DS
+;     PUSH ES
+;     PUSH AX
+;     PUSH CX
+;     PUSH BX
 
-    MOV AX, 0B800H
-    MOV ES, AX
-    MOV BX, 0   ;save the location of the screen. (DI + BX)
-    MOV AX, 0   ;used in MUL
-    MOV DI, 0
+;     MOV AX, 0B800H
+;     MOV ES, AX
+;     MOV BX, 0   ;save the location of the screen. (DI + BX)
+;     MOV AX, 0   ;used in MUL
+;     MOV DI, 0
 
-    ;Use BX to save the (160*index + 2*row)
-    PUSH DX
-    MOV DH, 0
-    ADD DX, DX
-    MOV BX, DX      ; 2*ROW
-    POP DX
-    MOV AH, DH
-    MOV DH, 0
-    MOV DL, AH
-    MOV DH, 0
-    MOV AX, 160
-    MUL DX          ; 160*INDEX
-    ADD BX, AX      ; Now the BX save the location of the screen
+;     ;Use BX to save the (160*index + 2*row)
+;     PUSH DX
+;     MOV DH, 0
+;     ADD DX, DX
+;     MOV BX, DX
+;     MOV AL, 160
+;     POP DX
+;     MUL DH
+;     ADD BX, AX      ; Now the BX save the location of the screen
 
-; Data-> [SI], Screen-> str:[DI+BX], color:[DI+BX+1]
-SHOW:
-    PUSH CX
-    MOV CX, 0
-    MOV AL, [SI]
-    MOV CL, AL      ;if (CX) is 0, then jump to the end
-    JCXZ OK
+; ; Data-> [SI], Screen-> str:[DI+BX], color:[DI+BX+1]
+; SHOW:
+    
+;     JCXZ OK
 
-    POP CX
-    MOV BYTE PTR ES:[DI+BX], AL
-    MOV BYTE PTR ES:[DI+BX+1], CL
-    ADD DI, 2
-    INC SI
-    JMP SHORT SHOW
+    
+;     JMP SHORT SHOW
 
-OK:
-    POP CX
-    POP BX
-    POP ES
-    POP DS
-    POP DI
-    POP SI
+; OK:
+;     POP CX
+;     POP BX
+;     POP AX
+;     POP ES
+;     POP DS
+;     POP DI
+;     POP SI
 
-RET
+; RET
 
 
 CODES ENDS
