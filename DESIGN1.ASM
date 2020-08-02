@@ -8,12 +8,18 @@ DATA SEGMENT
 
     dw 3,7,9,13,28,38,130,220,476,778,1001,1442,2258,2793,4037,5635,8226
     dw 11542,14430,15257,17800
+
+    dd 21 DUP (0)
 DATA ENDS
 
-TABLE SEGMENT
-    db 21 dup ('year summ ne ?? ')
-TABLE ENDS
 
+
+; ===============================================================;
+; Function: print the data above on the screen
+; 1. call the subprogram(DIVDW) to process the data, compute the meam salaries and save them
+; 2. call the subprogram(DTOC) to modify the dword number data to the string
+; 3. call the subprogram(SHOW_STR) to print these data to the screen.
+; ===============================================================;
 CODES SEGMENT
     ASSUME CS:CODES, DS:DATA
 START:
@@ -29,11 +35,13 @@ START:
 
 
 
+; ===============================================================;
 ; Divide sub program
 ; Parameter: dividend:  DX: high 16bit digit, AX: low 16bit digit.
 ;            divisor:   CX
 ; Result:    quotient:  DX: high 16bit digit, AX: low 16bit digit.
 ;            remainder: CX
+; ===============================================================;
 DIVDW:  
     JMP SHORT DIVSTART
     DATAREG DW 4 DUP (0)
@@ -86,8 +94,88 @@ DSRET:
     POP SI
     POP DS
     POP BX
-    RET
+    
+RET
 
+
+
+; ===============================================================;
+; Double word data-string change sub program
+; 
+; 
+; ===============================================================;
+DTOC:
+
+DEVIDE:
+
+STOP:
+
+STRING:
+
+
+
+RET
+
+
+
+; ===============================================================;
+; Show the data on the screen sub program
+; DH-index, DL-row, CL-color; 
+; DS-DataSegment, SI-data location, 
+; ES-screen segment adress, DI-screen location
+; ===============================================================;
+SHOW_STR:
+    ; push all used-parameter to the stack
+    PUSH SI
+    PUSH DI
+    PUSH DS
+    PUSH ES
+    PUSH BX
+
+    MOV AX, 0B800H
+    MOV ES, AX
+    MOV BX, 0   ;save the location of the screen. (DI + BX)
+    MOV AX, 0   ;used in MUL
+    MOV DI, 0
+
+    ;Use BX to save the (160*index + 2*row)
+    PUSH DX
+    MOV DH, 0
+    ADD DX, DX
+    MOV BX, DX      ; 2*ROW
+    POP DX
+    MOV AH, DH
+    MOV DH, 0
+    MOV DL, AH
+    MOV DH, 0
+    MOV AX, 160
+    MUL DX          ; 160*INDEX
+    ADD BX, AX      ; Now the BX save the location of the screen
+
+; Data-> [SI], Screen-> str:[DI+BX], color:[DI+BX+1]
+SHOW:
+    PUSH CX
+    MOV CX, 0
+    MOV AL, [SI]
+    MOV CL, AL      ;if (CX) is 0, then jump to the end
+    JCXZ OK
+
+    POP CX
+    MOV BYTE PTR ES:[DI+BX], AL
+    MOV BYTE PTR ES:[DI+BX+1], CL
+    ADD DI, 2
+    INC SI
+    JMP SHORT SHOW
+
+OK:
+    POP CX
+    POP BX
+    POP ES
+    POP DS
+    POP DI
+    POP SI
+
+RET
 
 
 CODES ENDS
