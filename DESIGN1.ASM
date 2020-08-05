@@ -17,7 +17,7 @@ STACKS SEGMENT
 STACKS ENDS
 
 
-
+CODE SEGMENT
 ASSUME CS:CODE, DS:DATA, SS:STACKS
 START:
     MOV AX, DATA
@@ -123,7 +123,7 @@ DIVSTART:
     MOV BX, 128
     MUL BX
     ADD AX, [SI]    ; compute the rem(H/N)*65536 + L
-    DIX CX          ; compute teh [rem(H/N)*65536 + L]/N
+    DIV CX          ; compute teh [rem(H/N)*65536 + L]/N
 
     MOV CX, DX      ; the remainder of result
     ADD AX, [SI+4]  ; low 4bit of result
@@ -159,8 +159,7 @@ CHANGEPRINT:
 
     JMP DETERMINE
 ; allocate some space to save DI and SI
-CHANGEREG:
-    dw 2 DUP (0)
+    CHANGEREG dw 2 DUP (0)
 
 ; Determine weather is a number or str. '19' == 3139H
 DETERMINE:
@@ -183,7 +182,7 @@ NUM16:
     MOV DI, 0
 NUM16DEVIDE:
     MOV CX, AX
-    JCXZ STOP
+    JCXZ STOPPUSH   ;???????????????
 
     DIV BX
     INC DI
@@ -199,16 +198,16 @@ HIGH_NUM32DEVIDE:
     MOV CX, AX
     JCXZ MID
 
-    DIV BX, 10
+    DIV BX
     INC DI
     PUSH DX
     MOV DX, 0
-    JMP NUM32DEVIDE
+    JMP HIGH_NUM32DEVIDE
 MID:
     MOV AX, [SI+2]
 LOW_NUM32DEVIDE:
     MOV CX, AX
-    JCXZ STOP
+    JCXZ STOPPUSH   ;???????????????
 
     MOV DX, 0
     DIV BX
@@ -217,7 +216,7 @@ LOW_NUM32DEVIDE:
     JMP LOW_NUM32DEVIDE
 
 ; Stop to devide and begin to change and print in screen.
-STOP：
+STOPPUSH:
     MOV CX, DI
 CHANGE2STR:
     POP BX
@@ -227,7 +226,7 @@ CHANGE2STR:
     MOV ES, AX
 
     MOV ES:[DI], BL
-    MOV ES:[DI+1], 07H  ; Black background and white string
+    MOV BYTE PTR ES:[DI+1], 07H  ; Black background and white string
     INC DI
     INC DI
     LOOP CHANGE2STR
@@ -242,7 +241,7 @@ STR16:
 STR16PRINT:
     MOV AL, [SI]
     MOV ES:[DI], AL
-    MOV ES:[DI + 1], 07H
+    MOV BYTE PTR ES:[DI + 1], 07H
     INC SI
     INC DI
     INC DI
@@ -258,6 +257,8 @@ OK:
     POP CX
     POP AX
 
+    RET
 
-CODES ENDS
+
+CODE ENDS
 END START

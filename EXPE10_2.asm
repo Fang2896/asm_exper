@@ -48,7 +48,7 @@ DIVSTART:
     MOV BX, 128
     MUL BX
     ADD AX, [SI]    ; compute the rem(H/N)*65536 + L
-    DIX CX          ; compute teh [rem(H/N)*65536 + L]/N
+    DIV CX          ; compute teh [rem(H/N)*65536 + L]/N
 
     MOV CX, DX      ; the remainder of result
     ADD AX, [SI+4]  ; low 4bit of result
